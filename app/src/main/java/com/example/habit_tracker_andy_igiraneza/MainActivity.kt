@@ -31,11 +31,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Habit(val name: String, val isCompleted: Boolean = false)
+data class Habit(
+    val id: Int,
+    val name: String,
+    val isCompleted: Boolean = false
+)
 
 @Composable
 fun HabitTrackerApp(modifier: Modifier = Modifier) {
     val habits = remember { mutableStateListOf<Habit>() }
+    var nextId by remember { mutableStateOf(1) }
 
     Column(
         modifier = modifier
@@ -48,7 +53,8 @@ fun HabitTrackerApp(modifier: Modifier = Modifier) {
 
         HabitInputSection(
             onAddHabit = { habitName ->
-                habits.add(Habit(habitName))
+                habits.add(Habit(id = nextId, name = habitName))
+                nextId++
             }
         )
 
@@ -59,6 +65,9 @@ fun HabitTrackerApp(modifier: Modifier = Modifier) {
             onCompleteHabit = { index ->
                 val currentHabit = habits[index]
                 habits[index] = currentHabit.copy(isCompleted = true)
+            },
+            onDeleteHabit = { index ->
+                habits.removeAt(index)
             }
         )
     }
@@ -104,13 +113,15 @@ fun HabitInputSection(onAddHabit: (String) -> Unit) {
 @Composable
 fun HabitList(
     habits: List<Habit>,
-    onCompleteHabit: (Int) -> Unit
+    onCompleteHabit: (Int) -> Unit,
+    onDeleteHabit: (Int) -> Unit
 ) {
     LazyColumn {
         itemsIndexed(habits) { index, habit ->
             HabitItem(
                 habit = habit,
-                onCompleted = { onCompleteHabit(index) }
+                onCompleted = { onCompleteHabit(index) },
+                onDelete = { onDeleteHabit(index) }
             )
         }
     }
@@ -119,7 +130,8 @@ fun HabitList(
 @Composable
 fun HabitItem(
     habit: Habit,
-    onCompleted: () -> Unit
+    onCompleted: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -127,16 +139,40 @@ fun HabitItem(
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = habit.name,
-            color = if (habit.isCompleted) Color.Gray else Color.Black,
-            textDecoration = if (habit.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-        )
-
-        Button(
-            onClick = { if (!habit.isCompleted) onCompleted() }
+        Column(
+            modifier = Modifier.weight(1f)
         ) {
-            Text("Completed")
+            Text(
+                text = "ID: ${habit.id}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+
+            Text(
+                text = habit.name,
+                color = if (habit.isCompleted) Color.Gray else Color.Black,
+                textDecoration = if (habit.isCompleted) {
+                    TextDecoration.LineThrough
+                } else {
+                    TextDecoration.None
+                }
+            )
+        }
+
+        Row {
+            Button(
+                onClick = { if (!habit.isCompleted) onCompleted() }
+            ) {
+                Text("Completed")
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = onDelete
+            ) {
+                Text("Delete")
+            }
         }
     }
 }
