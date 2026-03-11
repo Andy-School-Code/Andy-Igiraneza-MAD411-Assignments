@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateListOf
@@ -16,16 +18,17 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.habit_tracker_andy_igiraneza.ui.theme.Habit_Tracker_Andy_IgiranezaTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             Habit_Tracker_Andy_IgiranezaTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HabitTrackerApp(modifier = Modifier.padding(innerPadding))
-                }
+                HabitTrackerApp()
             }
         }
     }
@@ -38,76 +41,103 @@ data class Habit(
 )
 
 @Composable
-fun HabitTrackerApp(modifier: Modifier = Modifier) {
+fun HabitTrackerApp() {
+
     val habits = remember { mutableStateListOf<Habit>() }
     var nextId by remember { mutableStateOf(1) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        HeaderSection()
+    var habitText by remember { mutableStateOf("") }
 
-        Spacer(modifier = Modifier.height(16.dp))
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-        HabitInputSection(
-            onAddHabit = { habitName ->
-                habits.add(Habit(id = nextId, name = habitName))
-                nextId++
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+
+                    if (habitText.isNotBlank()) {
+
+                        habits.add(
+                            Habit(
+                                id = nextId,
+                                name = habitText.trim()
+                            )
+                        )
+
+                        nextId++
+                        habitText = ""
+
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Habit added successfully")
+                        }
+                    }
+                }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
-        )
+        }
+    ) { innerPadding ->
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(16.dp)
+                .fillMaxSize()
+        ) {
 
-        HabitList(
-            habits = habits,
-            onCompleteHabit = { index ->
-                val currentHabit = habits[index]
-                habits[index] = currentHabit.copy(isCompleted = true)
-            },
-            onDeleteHabit = { index ->
-                habits.removeAt(index)
-            }
-        )
+            HeaderSection()
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            HabitInputSection(
+                habitText = habitText,
+                onHabitTextChange = { habitText = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            HabitList(
+                habits = habits,
+                onCompleteHabit = { index ->
+
+                    val currentHabit = habits[index]
+
+                    habits[index] = currentHabit.copy(
+                        isCompleted = true
+                    )
+                },
+                onDeleteHabit = { index ->
+                    habits.removeAt(index)
+                }
+            )
+        }
     }
 }
 
 @Composable
 fun HeaderSection() {
+
     Text(
         text = "Student Habit Tracker",
-        style = MaterialTheme.typography.headlineMedium,
-        modifier = Modifier.padding(bottom = 8.dp)
+        style = MaterialTheme.typography.headlineMedium
     )
 }
 
 @Composable
-fun HabitInputSection(onAddHabit: (String) -> Unit) {
-    var inputText by remember { mutableStateOf("") }
+fun HabitInputSection(
+    habitText: String,
+    onHabitTextChange: (String) -> Unit
+) {
 
-    Column {
-        OutlinedTextField(
-            value = inputText,
-            onValueChange = { inputText = it },
-            label = { Text("Enter a new habit") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = {
-                if (inputText.isNotBlank()) {
-                    onAddHabit(inputText.trim())
-                    inputText = ""
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Add Habit")
-        }
-    }
+    OutlinedTextField(
+        value = habitText,
+        onValueChange = onHabitTextChange,
+        label = { Text("Enter a new habit") },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable
@@ -116,8 +146,11 @@ fun HabitList(
     onCompleteHabit: (Int) -> Unit,
     onDeleteHabit: (Int) -> Unit
 ) {
+
     LazyColumn {
+
         itemsIndexed(habits) { index, habit ->
+
             HabitItem(
                 habit = habit,
                 onCompleted = { onCompleteHabit(index) },
@@ -133,15 +166,19 @@ fun HabitItem(
     onCompleted: () -> Unit,
     onDelete: () -> Unit
 ) {
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
+
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+
         Column(
             modifier = Modifier.weight(1f)
         ) {
+
             Text(
                 text = "ID: ${habit.id}",
                 style = MaterialTheme.typography.bodySmall,
@@ -150,18 +187,27 @@ fun HabitItem(
 
             Text(
                 text = habit.name,
-                color = if (habit.isCompleted) Color.Gray else Color.Black,
-                textDecoration = if (habit.isCompleted) {
+
+                color = if (habit.isCompleted)
+                    Color.Gray
+                else
+                    Color.Black,
+
+                textDecoration = if (habit.isCompleted)
                     TextDecoration.LineThrough
-                } else {
+                else
                     TextDecoration.None
-                }
             )
         }
 
         Row {
+
             Button(
-                onClick = { if (!habit.isCompleted) onCompleted() }
+                onClick = {
+                    if (!habit.isCompleted) {
+                        onCompleted()
+                    }
+                }
             ) {
                 Text("Completed")
             }
@@ -180,6 +226,7 @@ fun HabitItem(
 @Preview(showBackground = true)
 @Composable
 fun HabitTrackerPreview() {
+
     Habit_Tracker_Andy_IgiranezaTheme {
         HabitTrackerApp()
     }
