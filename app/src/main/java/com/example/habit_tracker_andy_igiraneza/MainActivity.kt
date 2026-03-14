@@ -1,6 +1,7 @@
 package com.example.habit_tracker_andy_igiraneza
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("HabitTracker", "onCreate called")
         enableEdgeToEdge()
 
         setContent {
@@ -31,6 +33,31 @@ class MainActivity : ComponentActivity() {
                 HabitTrackerApp()
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d("HabitTracker", "onStart called")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("HabitTracker", "onResume called")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("HabitTracker", "onPause called")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d("HabitTracker", "onStop called")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("HabitTracker", "onDestroy called")
     }
 }
 
