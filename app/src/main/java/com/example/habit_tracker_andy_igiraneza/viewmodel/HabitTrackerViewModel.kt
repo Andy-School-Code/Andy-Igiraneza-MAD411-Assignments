@@ -22,9 +22,11 @@ class HabitTrackerViewModel : ViewModel() {
     fun fetchQuote() {
         viewModelScope.launch {
             _quoteUiState.value = QuoteUiState.Loading
+
             try {
                 val result: List<Quote> = RetrofitInstance.api.getRandomQuote()
                 val quote = result.firstOrNull()
+
                 if (quote != null) {
                     _quoteUiState.value = QuoteUiState.Success(quote)
                 } else {

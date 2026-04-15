@@ -29,9 +29,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -39,6 +44,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -46,6 +52,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.habit_tracker_andy_igiraneza.ui.QuoteSection
+import com.example.habit_tracker_andy_igiraneza.ui.QuoteUiState
 import com.example.habit_tracker_andy_igiraneza.ui.theme.Habit_Tracker_Andy_IgiranezaTheme
 import com.example.habit_tracker_andy_igiraneza.viewmodel.HabitTrackerViewModel
 import kotlinx.coroutines.launch
@@ -105,7 +112,7 @@ fun HabitTrackerApp(
     var nextId by remember { mutableStateOf(1) }
     var habitText by rememberSaveable { mutableStateOf("") }
 
-    val quoteUiState by habitTrackerViewModel.quoteUiState.collectAsState()
+    val quoteUiState by habitTrackerViewModel.quoteUiState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -176,7 +183,7 @@ fun HabitTrackerApp(
 fun HabitMainScreen(
     habits: List<Habit>,
     habitText: String,
-    quoteUiState: com.example.habit_tracker_andy_igiraneza.ui.QuoteUiState,
+    quoteUiState: QuoteUiState,
     onRefreshQuote: () -> Unit,
     onHabitTextChange: (String) -> Unit,
     onAddHabit: () -> Unit,
@@ -190,11 +197,14 @@ fun HabitMainScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddHabit) {
+            FloatingActionButton(
+                onClick = onAddHabit
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -309,7 +319,11 @@ fun HabitItem(
             Text(
                 text = habit.name,
                 color = if (habit.isCompleted) Color.Gray else Color.Black,
-                textDecoration = if (habit.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                textDecoration = if (habit.isCompleted) {
+                    TextDecoration.LineThrough
+                } else {
+                    TextDecoration.None
+                }
             )
         }
 
@@ -374,13 +388,5 @@ fun HabitDetailScreen(
         Button(onClick = onBack) {
             Text("Back")
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HabitTrackerPreview() {
-    Habit_Tracker_Andy_IgiranezaTheme {
-        HabitTrackerApp()
     }
 }
