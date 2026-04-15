@@ -1,7 +1,7 @@
 package com.example.habit_tracker_andy_igiraneza
 
+import android.content.Context.MODE_PRIVATE
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
@@ -29,16 +29,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -46,6 +50,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.habit_tracker_andy_igiraneza.ui.QuoteSection
+import com.example.habit_tracker_andy_igiraneza.ui.QuoteUiState
 import com.example.habit_tracker_andy_igiraneza.ui.theme.Habit_Tracker_Andy_IgiranezaTheme
 import com.example.habit_tracker_andy_igiraneza.viewmodel.HabitTrackerViewModel
 import kotlinx.coroutines.launch
@@ -101,11 +106,11 @@ fun HabitTrackerApp(
     habitTrackerViewModel: HabitTrackerViewModel = viewModel()
 ) {
     val navController = rememberNavController()
-    val habits = remember { mutableStateListOf<Habit>() }
-    var nextId by remember { mutableStateOf(1) }
-    var habitText by rememberSaveable { mutableStateOf("") }
 
-    val quoteUiState by habitTrackerViewModel.quoteUiState.collectAsState()
+    val quoteUiState by habitTrackerViewModel.quoteUiState.collectAsStateWithLifecycle()
+    val habits = habitTrackerViewModel.habits
+
+    var habitText by rememberSaveable { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -123,13 +128,7 @@ fun HabitTrackerApp(
                 onHabitTextChange = { habitText = it },
                 onAddHabit = {
                     if (habitText.isNotBlank()) {
-                        habits.add(
-                            Habit(
-                                id = nextId,
-                                name = habitText.trim()
-                            )
-                        )
-                        nextId++
+                        habitTrackerViewModel.addHabit(habitText)
                         habitText = ""
 
                         scope.launch {
@@ -137,16 +136,15 @@ fun HabitTrackerApp(
                         }
                     }
                 },
-                onCompleteHabit = { index ->
-                    val currentHabit = habits[index]
-                    habits[index] = currentHabit.copy(isCompleted = true)
+                onCompleteHabit = { habit ->
+                    habitTrackerViewModel.completeHabit(habit)
                 },
-                onDeleteHabit = { index ->
-                    habits.removeAt(index)
+                onDeleteHabit = { habit ->
+                    habitTrackerViewModel.deleteHabit(habit)
                 },
                 onViewDetails = { habit ->
                     navController.navigate(
-                        "detail/${Uri.encode(habit.name)}/${habit.isCompleted}"
+                        "detail/${habit.name.toUri()}/${habit.isCompleted}"
                     )
                 },
                 snackbarHostState = snackbarHostState
@@ -176,25 +174,35 @@ fun HabitTrackerApp(
 fun HabitMainScreen(
     habits: List<Habit>,
     habitText: String,
-    quoteUiState: com.example.habit_tracker_andy_igiraneza.ui.QuoteUiState,
+    quoteUiState: QuoteUiState,
     onRefreshQuote: () -> Unit,
     onHabitTextChange: (String) -> Unit,
     onAddHabit: () -> Unit,
-    onCompleteHabit: (Int) -> Unit,
-    onDeleteHabit: (Int) -> Unit,
+    onCompleteHabit: (Habit) -> Unit,
+    onDeleteHabit: (Habit) -> Unit,
     onViewDetails: (Habit) -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
+    val prefs = remember {
+        context.getSharedPreferences("habit_prefs", MODE_PRIVATE)
+    }
+
+    var displayName by rememberSaveable {
+        mutableStateOf(prefs.getString("display_name", "") ?: "")
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddHabit) {
+            FloatingActionButton(
+                onClick = onAddHabit
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Habit")
             }
         }
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -202,6 +210,37 @@ fun HabitMainScreen(
                 .fillMaxSize()
         ) {
             HeaderSection()
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (displayName.isNotBlank()) {
+                Text(
+                    text = "Welcome back, $displayName!",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            OutlinedTextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                label = { Text("Your Name") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    prefs.edit()
+                        .putString("display_name", displayName)
+                        .apply()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Save Name")
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -268,16 +307,16 @@ fun HabitInputSection(
 @Composable
 fun HabitList(
     habits: List<Habit>,
-    onCompleteHabit: (Int) -> Unit,
-    onDeleteHabit: (Int) -> Unit,
+    onCompleteHabit: (Habit) -> Unit,
+    onDeleteHabit: (Habit) -> Unit,
     onViewDetails: (Habit) -> Unit
 ) {
     LazyColumn {
-        itemsIndexed(habits) { index, habit ->
+        items(habits) { habit ->
             HabitItem(
                 habit = habit,
-                onCompleted = { onCompleteHabit(index) },
-                onDelete = { onDeleteHabit(index) },
+                onCompleted = { onCompleteHabit(habit) },
+                onDelete = { onDeleteHabit(habit) },
                 onViewDetails = { onViewDetails(habit) }
             )
         }
@@ -309,7 +348,11 @@ fun HabitItem(
             Text(
                 text = habit.name,
                 color = if (habit.isCompleted) Color.Gray else Color.Black,
-                textDecoration = if (habit.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                textDecoration = if (habit.isCompleted) {
+                    TextDecoration.LineThrough
+                } else {
+                    TextDecoration.None
+                }
             )
         }
 
@@ -374,13 +417,5 @@ fun HabitDetailScreen(
         Button(onClick = onBack) {
             Text("Back")
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HabitTrackerPreview() {
-    Habit_Tracker_Andy_IgiranezaTheme {
-        HabitTrackerApp()
     }
 }
